@@ -1,0 +1,33 @@
+// What the kit does on a page: reads the app's setup, and reports a page view for every page a visitor opens.
+
+using Osysharp.WebAnalytics;
+
+[Test]
+void the_setup_reaches_the_page_as_the_browser_needs_it() {
+  var config = AnalyticsConfiguration();
+  Assert.Equal("plausible", config.Provider);
+  Assert.Equal("kettles.example", config.Domain);
+  Assert.Equal("https://plausible.io", config.Host);
+  Assert.False(config.NeedsConsent);                          // Plausible is cookieless: it asks nothing
+}
+
+[Test]
+void every_page_opened_is_a_page_view_and_a_reserved_domain_sends_nothing() {
+  Ui.Visit("/");
+  Assert.Probe("AnalyticsTag", "lastPageView", "/");
+  Assert.Probe("AnalyticsTag", "dryRun", true);
+  Assert.Probe("AnalyticsTag", "consent", "granted");
+  Ui.Click("The kettle");
+  Assert.Visible("A copper kettle.");
+  Assert.Probe("AnalyticsTag", "lastPageView", "/kettle");
+  Assert.Probe("AnalyticsTag", "sent", 2);
+  Assert.Hidden("Accept");                                    // no consent bar for a cookieless provider
+}
+
+[Test]
+void the_granted_host_and_only_it_is_on_the_pages_policy() {
+  var page = Api.Get("/");
+  var policy = page.Headers.Single(h => h.Name == "Content-Security-Policy").Value;
+  Assert.Contains("https://plausible.io", policy);                     // `egress browser "plausible.io"` in app.osy
+  Assert.DoesNotContain("googletagmanager", policy);                   // GA4 was not granted, so its tag cannot load
+}

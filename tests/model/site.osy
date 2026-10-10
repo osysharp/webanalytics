@@ -1,0 +1,35 @@
+// A small site: a layout with the analytics in it, a front page, and a page that states an event.
+
+using Osysharp.WebAnalytics;
+
+app.Analytics = new AnalyticsSetup { Provider = AnalyticsProvider.Plausible, Domain = "kettles.example" };
+
+[Layout]
+[AllowAnonymous]
+component Site() {
+  action Heard(string key) { }
+  render {
+    Stack(gap: 4, p: 6) {
+      Analytics(events: [], cart: [], currency: "SEK", onSent: Heard);
+      Row(gap: 4) {
+        Link(href: "/", label: "Home") { Text("Home"); }
+        Link(href: "/kettle", label: "The kettle") { Text("The kettle"); }
+      }
+      Outlet();
+    }
+  }
+}
+
+[Route("/")]
+[Layout(Site)]
+[AllowAnonymous]
+component Home() {
+  render { Text("Kettles, and nothing else."); }
+}
+
+[Route("/kettle")]
+[Layout(Site)]
+[AllowAnonymous]
+component KettlePage() {
+  render { Text("A copper kettle."); }
+}

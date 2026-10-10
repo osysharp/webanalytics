@@ -1,0 +1,9 @@
+// The producer's test project for Osysharp.WebAnalytics — two pages in a layout that carries `Analytics()`, reporting to
+// Plausible under a reserved domain, so every event is recorded on the page and none leaves it.
+app AnalyticsKitTests {
+  model "model/**/*.osy";
+  tests "**/*.test.osy";
+  use Osysharp.Ui;
+  use Osysharp.Http;
+  use Osysharp.WebAnalytics@0 { egress browser "plausible.io"; }
+}

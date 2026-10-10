@@ -1,0 +1,23 @@
+// Osysharp.WebAnalytics — web analytics for an app's pages: Plausible or Google Analytics 4, page views and the
+// e-commerce events both understand (view_item, add_to_cart, begin_checkout, purchase), and the consent GA4 needs.
+//
+// ⚑ THE THIRD PARTY IS REACHED THE PLATFORM'S WAY, NOT BY PASTING A SNIPPET. The browser code is this package's own
+//   control (`analytics.js`, pinned by content hash in `osyrin.lock`), and the hosts it talks to are the app's to grant
+//   in its `use` body — `egress browser "plausible.io";` for Plausible's events, `egress browser script
+//   "*.googletagmanager.com";` (and the two data hosts) for GA4's tag. The page's Content-Security-Policy is widened by
+//   exactly those grants, they are listed with every other egress grant (`osy egress list`, the Admin Config tab), and a
+//   host nobody granted is refused by the browser. Which host is the app's choice — Plausible can be self-hosted — so the
+//   manifest says `egress browser consumer;` rather than naming one.
+package Osysharp.WebAnalytics {
+  version "0.1.3";
+  minPlatform "0.9.0";
+  contract    "1.1";
+  summary     "web analytics — Plausible or Google Analytics 4: page views, e-commerce events, and consent before GA4 tracks.";
+
+  model    "*.osy";
+  use Osysharp.Ui;
+  controls "osyrin.lock";
+  controls "analytics.js";
+  egress browser consumer;
+  tests "tests";
+}

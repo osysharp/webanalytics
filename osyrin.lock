@@ -1,0 +1,15 @@
+{
+  "platform": {
+    "version": "0.9.0"
+  },
+  "entries": [],
+  "controls": [
+    {
+      "name": "AnalyticsTag",
+      "hash": "88daa211d311b62a9dd5d91b32cd0d0e90e1726ed8882d54232d2f75e7cb51d7",
+      "file": "analytics.js",
+      "contentType": "text/javascript",
+      "source": "analytics.ts"
+    }
+  ]
+}

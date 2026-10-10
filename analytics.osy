@@ -1,0 +1,195 @@
+// Analytics@0 — web analytics for an app's pages (`using Osysharp.WebAnalytics;`).
+//
+// The app says which provider in its config, grants that provider's hosts on its `use`, and puts `Analytics()` in its
+// layout once:
+//
+//     app.Analytics = new AnalyticsSetup { Provider = AnalyticsProvider.Plausible, Domain = "shop.example.com" };
+//     use Osysharp.WebAnalytics@0 { egress browser "plausible.io"; }
+//
+// Every page view is then reported, and whatever `events` the layout hands it — the e-commerce vocabulary below, which
+// is GA4's own (https://developers.google.com/analytics/devguides/collection/ga4/ecommerce). A shop does not write even
+// that: `ShopAnalytics()` in the shop kit derives view_item, add_to_cart, begin_checkout and purchase from the shop's
+// own rows.
+//
+// ⚑ CONSENT. Plausible sets no cookie and keeps no personal data, so it needs none and asks for none. GA4 sets cookies,
+//   and in the EU it may not track before the visitor agrees — so with GA4 the page shows `AnalyticsConsentBar`, and
+//   until the visitor accepts NOTHING of Google's is loaded: no script, no request, no cookie. The visitor's answer is
+//   kept in their own browser.
+
+namespace Osysharp.WebAnalytics;
+
+using Osysharp.Ui;
+
+/// Where page views and events go.
+public enum AnalyticsProvider {
+  /// Nothing is loaded or sent.
+  None,
+  /// Plausible (plausible.io, or your own instance) — cookieless; needs no consent.
+  Plausible,
+  /// Google Analytics 4 — loads Google's tag only after the visitor accepts analytics cookies.
+  GoogleAnalytics,
+}
+
+/// The app's analytics, set once in its config: `app.Analytics = new AnalyticsSetup { … }`. Read fresh on every page.
+[AppSetting("Analytics")]
+public class AnalyticsSetup {
+  /// Who measures the visits. An organisation that allows only cookieless measurement — or none — may set it for every
+  /// app it runs.
+  [OrgPolicy(OrgPolicyMode.Lock)] public AnalyticsProvider Provider = AnalyticsProvider.None;
+  /// Plausible: the site's domain as it is registered in Plausible — "shop.example.com". A domain under a reserved
+  /// name (`.example`, `.test`, `.invalid`, `.localhost`) cannot be a Plausible site, so its events are recorded on the
+  /// page and never sent — what a demo or a test wants.
+  public string Domain = "";
+  /// Plausible: the server events go to. Your own instance's address when you host Plausible yourself — and then its
+  /// host is what the app grants (`egress browser "stats.example.com";`).
+  public string Host = "https://plausible.io";
+  /// GA4: the web stream's measurement id, "G-XXXXXXXXXX".
+  public string MeasurementId = "";
+}
+
+/// What a page's analytics control is told about the app's setup — the setup, as the browser needs it.
+public class AnalyticsConfig {
+  /// "none", "plausible" or "ga4".
+  public string Provider = "none";
+  public string Domain = "";
+  public string Host = "";
+  public string MeasurementId = "";
+  /// The provider may not track before the visitor agrees (GA4).
+  public bool NeedsConsent = false;
+}
+
+/// One product in an event — GA4's item (`item_id`, `item_name`, …), which Plausible's events carry as properties.
+public class AnalyticsItem {
+  /// The SKU, else the variant's id — the same id a product feed gives the item.
+  public string Id = "";
+  public string Name = "";
+  public string? Brand;
+  public string? Category;
+  /// A size or a colour.
+  public string? Variant;
+  public decimal Price;
+  public int Quantity = 1;
+}
+
+/// One e-commerce event, in GA4's recommended vocabulary: `view_item`, `add_to_cart`, `begin_checkout`, `purchase`
+/// (and `remove_from_cart`, `refund`…). A page states the events that are TRUE of it — "this page shows product X" —
+/// and the control reports each once per page view; a `purchase` is reported once ever, in that browser.
+public class AnalyticsEvent {
+  public string Name = "";
+  /// What makes two events the same event — a purchase's order reference, a viewed item's id.
+  public string Key = "";
+  public string Currency = "";
+  public decimal Value;
+  /// A purchase's order reference.
+  public string? TransactionId;
+  public decimal Tax;
+  public decimal Shipping;
+  public List<AnalyticsItem> Items = [];
+}
+
+/// The app's setup, for its pages. Anyone may read it: it is what the page's own script is about to use.
+[AllowAnonymous]
+public AnalyticsConfig AnalyticsConfiguration() {
+  var setup = App.Setting<AnalyticsSetup>();
+  if (setup.Provider == AnalyticsProvider.Plausible && setup.Domain.Trim() != "") {
+    return new AnalyticsConfig { Provider = "plausible", Domain = setup.Domain.Trim(),
+                                 Host = setup.Host.Trim() == "" ? "https://plausible.io" : setup.Host.Trim().TrimEnd('/') };
+  }
+  if (setup.Provider == AnalyticsProvider.GoogleAnalytics && setup.MeasurementId.Trim() != "") {
+    return new AnalyticsConfig { Provider = "ga4", MeasurementId = setup.MeasurementId.Trim(), NeedsConsent = true };
+  }
+  return new AnalyticsConfig();
+}
+
+/// The browser half: loads the provider (Plausible's events API directly — no third-party script; GA4's tag only once
+/// the visitor consents), reports a page view whenever `path` changes, reports `events` once per page view, and an
+/// `add_to_cart` for whatever grows in `cart`. Draws nothing. Use `Analytics()`, which reads the setup and shows the
+/// consent bar, rather than this directly.
+control AnalyticsTag {
+  contractVersion "1.1"
+  participation headless
+  props {
+    [Values(none, plausible, ga4)] string provider = "none";
+    string domain = "";
+    string host = "";
+    string measurementId = "";
+    /// The page being viewed. A change is a page view.
+    string path = "";
+    /// The visitor's answer for a provider that needs one. `unknown` means "use what they answered before, if they did".
+    [Values(unknown, granted, denied)] string consent = "unknown";
+    string currency = "";
+    /// The events true of this page view.
+    AnalyticsEvent[] events = [];
+    /// The visitor's bag — what grows in it is reported as `add_to_cart`.
+    AnalyticsItem[] cart = [];
+  }
+  events {
+    /// The visitor's earlier answer, read from their browser when the page opens — or `unknown`.
+    consentKnown(string state);
+    /// An event was reported (or dropped for want of consent, and will not be tried again) — its `Key`.
+    sent(string key);
+  }
+  probe {
+    /// How many page views and events this page has reported.
+    int sent;
+    /// The last page view reported — its path.
+    string? lastPageView;
+    /// The last of each e-commerce event reported, as "Kiambu AA (250 g)", "1 × Kiambu AA (250 g)",
+    /// "2 items · 330.00 SEK" and "GG-1042 · 330.00 SEK".
+    string? lastViewItem;
+    string? lastAddToCart;
+    string? lastBeginCheckout;
+    string? lastPurchase;
+    /// Purchases reported from this page.
+    int purchases;
+    /// The provider is ready to send: Plausible configured, or GA4's tag loaded.
+    bool loaded;
+    /// The consent in force: granted, denied or unknown.
+    string consent;
+    /// Events are recorded and not sent — Plausible with a reserved domain.
+    bool dryRun;
+  }
+}
+
+/// A page's analytics. Put it in the app's layout once; it reads `app.Analytics`, reports every page view, and — for a
+/// provider that needs it — asks the visitor's consent. `events` are the e-commerce events true of the page being
+/// viewed; `cart`, the visitor's bag. `onSent` hears each event's key once it is reported.
+[Composable]
+[AllowAnonymous]
+public component Analytics(AnalyticsEvent[] events, AnalyticsItem[] cart, string currency, Action<string> onSent) {
+  AnalyticsConfig config = null;
+  string consent = "unknown";
+  on mount { config = AnalyticsConfiguration(); }
+  action Known(string state) { consent = state; }
+  action Accept() { consent = "granted"; }
+  action Decline() { consent = "denied"; }
+  action Sent(string key) { onSent(key); }
+  render {
+    if (config != null && config.Provider != "none") {
+      AnalyticsTag(provider: config.Provider, domain: config.Domain, host: config.Host, measurementId: config.MeasurementId,
+                   path: Navigation.CurrentPath ?? "", consent: consent, currency: currency, events: events, cart: cart,
+                   consentKnown: Known, sent: Sent);
+      if (config.NeedsConsent && consent == "unknown") { AnalyticsConsentBar(Accept, Decline); }
+    }
+  }
+}
+
+/// The question GA4 needs answered before it may track: a bar along the foot of the page, with a yes and a no of equal
+/// weight — the EU's rule is that refusing is as easy as agreeing.
+[Composable]
+[AllowAnonymous]
+public component AnalyticsConsentBar(Action accept, Action decline) {
+  render {
+    Box(role: UiRole.Region, label: "Cookies", position: Position.Fixed, bottom: "0", left: "0", right: "0", z: 50,
+        bg: Colors.Surface, borderTW: 1, border: Colors.Border, p: 4) {
+      Row(gap: 4, align: Align.Center, justify: Justify.Between, wrap: Wrapping.Wrap, maxW: "1100px", mx: "auto") {
+        Text("We would like to count visits with Google Analytics, which sets cookies. Nothing is sent to Google unless you agree.",
+             color: Colors.TextSecondary, maxW: Length.Measure);
+        Row(gap: 2) {
+          Button("Decline", onPress: decline);
+          Button("Accept", onPress: accept, tone: Tone.Primary);
+        }
+      }
+    }
+  }
+}

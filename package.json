@@ -1,0 +1,14 @@
+{
+  "name": "osy-kit-analytics",
+  "private": true,
+  "description": "Build and test deps for the WebAnalytics kit's shim. `osy control build kits/web-analytics` prefers this directory's own node_modules/.bin/esbuild.",
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "happy-dom": "^20.0.0",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs"
+  }
+}
