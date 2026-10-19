@@ -9,8 +9,8 @@
 //   host nobody granted is refused by the browser. Which host is the app's choice — Plausible can be self-hosted — so the
 //   manifest says `egress browser consumer;` rather than naming one.
 package Osysharp.WebAnalytics {
-  version "0.1.3";
-  minPlatform "0.9.0";
+  version "0.2.0";
+  minPlatform "0.14.0";
   contract    "1.1";
   summary     "web analytics — Plausible or Google Analytics 4: page views, e-commerce events, and consent before GA4 tracks.";
 
