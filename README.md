@@ -27,3 +27,47 @@ its own rows.
 
 Its tests: `tests/` (the kit in a real app) and `npm test` (the shim in a DOM, with the network stubbed — GA4 and the
 exact bodies Plausible receives).
+
+## Examples
+
+Taken from this package's own tests, which compile and run on every release.
+
+```osy
+using Osysharp.WebAnalytics;
+
+[Test]
+void the_setup_reaches_the_page_as_the_browser_needs_it() {
+  var config = AnalyticsConfiguration();
+  Assert.Equal("plausible", config.Provider);
+  Assert.Equal("kettles.example", config.Domain);
+  Assert.Equal("https://plausible.io", config.Host);
+  Assert.False(config.NeedsConsent);                          // Plausible is cookieless: it asks nothing
+}
+```
+
+From [`tests/analytics.test.osy`](tests/analytics.test.osy).
+
+```osy
+using Osysharp.WebAnalytics;
+
+[Test]
+void the_granted_host_and_only_it_is_on_the_pages_policy() {
+  var page = Api.Get("/");
+  var policy = page.Headers.Single(h => h.Name == "Content-Security-Policy").Value;
+  Assert.Contains("https://plausible.io", policy);                     // `egress browser "plausible.io"` in app.osy
+  Assert.DoesNotContain("googletagmanager", policy);                   // GA4 was not granted, so its tag cannot load
+}
+```
+
+From [`tests/analytics.test.osy`](tests/analytics.test.osy).
+
+## Learn more
+
+- [The Osysharp.WebAnalytics reference](https://osysharp.com/reference/ui/analytics-kit/)
+- [Osysharp.WebAnalytics in the package catalogue](https://osysharp.com/packages/#osysharp-webanalytics)
+- [The Osy# reference](https://osysharp.com/reference/) — the language, the runtime and every kit
+- [`llms-full.txt`](https://osysharp.com/llms-full.txt) — the whole reference and specification as one Markdown file, for a coding agent
+
+## Licence
+
+MIT — see [`LICENSE`](LICENSE).
