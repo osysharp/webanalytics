@@ -35,7 +35,7 @@ public enum AnalyticsProvider {
 public class AnalyticsSetup {
   /// Who measures the visits. An organisation that allows only cookieless measurement — or none — may set it for every
   /// app it runs.
-  [OrgPolicy(OrgPolicyMode.Lock)] public AnalyticsProvider Provider = AnalyticsProvider.None;
+  [OrgPolicy(OrgPolicyMode.Lock, Name = "Web analytics provider")] public AnalyticsProvider Provider = AnalyticsProvider.None;
   /// Plausible: the site's domain as it is registered in Plausible — "shop.example.com". A domain under a reserved
   /// name (`.example`, `.test`, `.invalid`, `.localhost`) cannot be a Plausible site, so its events are recorded on the
   /// page and never sent — what a demo or a test wants.
